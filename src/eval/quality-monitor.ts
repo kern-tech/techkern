@@ -7,3 +7,4 @@ export async function checkQuality(_resp: RouteResponse, _floor: number): Promis
   // Stub: returns pass always (real impl uses embedding cosine + LLM judge)
   return { score: 0.95, passed: true };
 }
+// step 2
