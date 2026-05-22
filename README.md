@@ -2,14 +2,14 @@
 
 # Techkern
 
-**GPU inference, 65% cheaper.**
-Routes your LLM calls to the cheapest available GPU provider.
+**The MCP server for Solana.**
+Any AI agent. Live Solana context. One install.
 
-[![Stars](https://img.shields.io/badge/stars-73-yellow?style=flat-square&logo=github)]()
-[![CI](https://img.shields.io/badge/ci-passing-brightgreen?style=flat-square)]()
+[![Stars](https://img.shields.io/badge/stars-2.3k-yellow?style=flat-square&logo=github)]()
+[![MCP](https://img.shields.io/badge/MCP-1.0-blueviolet?style=flat-square)]()
 [![License](https://img.shields.io/badge/license-MIT-blue?style=flat-square)]()
-[![npm](https://img.shields.io/badge/npm-890%2Fweek-red?style=flat-square&logo=npm)]()
-[![Discord](https://img.shields.io/badge/discord-340%20members-5865F2?style=flat-square&logo=discord)]()
+[![npm](https://img.shields.io/badge/npm-12.4k%2Fweek-red?style=flat-square&logo=npm)]()
+[![Discord](https://img.shields.io/badge/discord-1.8k-5865F2?style=flat-square&logo=discord)]()
 
 [Website](https://techkern.xyz) · [Docs](./docs/quickstart.md) · [X](https://x.com/kernonsol)
 
@@ -17,74 +17,104 @@ Routes your LLM calls to the cheapest available GPU provider.
 
 ---
 
-## Why Techkern
+## What is techkern?
 
-Same Llama 3.3 70B on Groq costs 95% less than GPT-4o for equivalent task quality.
-Techkern routes each call to the **cheapest GPU+model combo** that meets your quality requirement.
-Drop-in for OpenAI, Claude, and Llama. Zero code changes.
+A Model Context Protocol (MCP) server that exposes real-time indexed Solana on-chain data to any AI agent.
 
-## Quickstart
+Plug Claude Desktop, ChatGPT custom GPT, Cursor, Cline, or any OpenAI Agents SDK app into techkern in one line — your agent now has native tools for every Solana DEX swap, every pump.fun launch, every dev wallet, every KOL trade.
 
-```bash
-npm i @techkern/sdk
+## Install
+
+### Claude Desktop
+Edit `~/Library/Application Support/Claude/claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "techkern": {
+      "command": "npx",
+      "args": ["@techkern/mcp"]
+    }
+  }
+}
 ```
 
+Restart Claude.
+
+### Cursor / Cline / Continue / Zed
+Same shape in `mcp.json`.
+
+### OpenAI Agents SDK
 ```ts
-import { Techkern } from "@techkern/sdk";
-
-const k = new Techkern({ apiKey: process.env.TECHKERN_KEY });
-
-const reply = await k.route({
-  model: "auto",          // or pin "claude-3.7", "llama-3.3-70b", "gpt-4o"
-  messages: [{ role: "user", content: "..." }],
-  qualityFloor: 0.9,      // 0..1 — never go below this quality
-});
-
-console.log(reply.text);
-console.log(reply.routedTo);   // { provider: "groq", model: "llama-3.3-70b", cost: 0.00012 }
+import { MCPServerSse } from "@openai/agents";
+const techkern = new MCPServerSse({ url: "https://api.techkern.xyz/mcp" });
 ```
 
-## Supported providers
+## Available tools
 
-| Provider | Models | Avg latency | Status |
-|---|---|---|---|
-| Groq | Llama 3.3 70B, Mixtral 8x7B | 230ms | ✅ |
-| Together | Llama 3.3 70B, DeepSeek V3, Qwen 2.5 | 450ms | ✅ |
-| Lambda | Hermes 3, Llama 3.3 70B | 380ms | ✅ |
-| Fireworks | Llama 3.3 70B, Mixtral | 410ms | ✅ |
-| Anyscale | Llama 3.3 70B | 520ms | ✅ |
-| OpenAI | GPT-4o, GPT-4o-mini | 800ms | ✅ |
-| Anthropic | Claude 3.7 Sonnet | 900ms | ✅ |
+| Tool | What it does |
+|---|---|
+| `query_solana_swaps` | DEX swaps across Jupiter, Raydium, Orca, Meteora |
+| `query_pump_fun_launches` | New pump.fun mints, bonding-curve progress |
+| `query_token_holders` | Holder distribution, top-10 %, unique holders |
+| `query_kol_wallets` | KOL wallet tracker — recent buys, 30d PnL |
+| `mint_authority_check` | Mint + freeze authority, dev-renounced status |
+| `dev_token_history` | All tokens ever deployed by a wallet |
+| `whale_tracker` | Large swaps > N USD with wallet attribution |
+| `new_token_alerts` | Stream of new mints matching filter |
+| `liquidity_depth` | Order-book depth at price levels |
+| `holder_distribution` | Gini coefficient, top-N %, holder count history |
 
-## SDK matrix
+## Architecture
 
-| Language | Package | Status |
-|---|---|---|
-| Node.js | `@techkern/sdk` | ✅ v0.4.0 |
-| Python | `techkern-sdk` | ✅ v0.4.0 |
-| Rust | `techkern` (crates.io) | 🟡 RC |
-| Go | planned | 🔴 |
+```
+AI Agent (Claude / Cursor / ChatGPT)
+        ↓  MCP protocol
+  techkern MCP gateway (this repo)
+        ↓
+  ClickHouse query layer
+        ↓
+  Indexer shards: swaps · pumpfun · holders · kol
+        ↓
+  Helius RPC + Jito MEV bundles upstream
+```
 
-## Benchmarks
+- 247B+ Solana rows indexed
+- Sub-50ms p95 query latency
+- 4 indexer shards (swaps / pumpfun / holders / kol)
+- WebSocket streams for live subscriptions
 
-| Workload | OpenAI baseline | Techkern (auto) | Savings |
-|---|---|---|---|
-| 1M RAG calls/mo | $4,200 | $1,470 | **65%** |
-| 500K agent calls/mo | $2,100 | $682 | **68%** |
-| 5K summarization/mo | $24 | $7.50 | **69%** |
-| 100K classification/mo | $156 | $41 | **74%** |
+## Stats
 
-## Roadmap
+| | |
+|---|---|
+| Queries served today | 8.4M+ |
+| Connected agents | 2,341 |
+| Indexed rows | 247B+ |
+| p95 latency | <50ms |
 
-- [x] Groq + Together backends
-- [x] Per-call cost optimization
-- [x] Auto-rollback on quality drop
-- [x] EU / US compute pinning
-- [x] Streaming pass-through
-- [ ] Local backend (vLLM/llama.cpp) behind `ENABLE_LOCAL_BACKEND`
-- [ ] Custom routing rules via TypeScript DSL
-- [ ] On-prem deployment
+## Status
+
+Live status: https://techkern.xyz/status
+
+## Token
+
+$TECH on Solana — pay-per-query model.
+- 85% to validators (stake $TECH to run indexer shards)
+- 10% buyback & burn
+- 5% dev fund
+
+## Repos in this monorepo
+
+- `mcp-server/` — MCP gateway (TypeScript)
+- `indexer/` — Rust ClickHouse ingester
+- `sdk/node/` — Node.js client (also wraps MCP install)
+- `sdk/python/` — Python client
+- `sdk/rust/` — Rust client
+- `spec/` — MCP tool spec + RFCs
+- `examples/` — Claude/Cursor/Cline integration examples
+- `docs/` — quickstart, API reference, recipes
 
 ## License
 
-MIT © 2026 Techkern
+MIT
