@@ -1,17 +1,33 @@
-"""Techkern Python SDK — GPU inference routing."""
+"""Python client for the techkern MCP server.
+
+Example:
+    from techkern import MCPClient
+    client = MCPClient()
+    swaps = await client.call("query_solana_swaps", {"minUsd": 50000, "limit": 20})
+"""
+from __future__ import annotations
+
 import httpx
 
-class Techkern:
-    def __init__(self, api_key: str, base_url: str = "https://api.techkern.xyz"):
-        self.api_key = api_key
-        self.base_url = base_url
-        self._client = httpx.AsyncClient()
+HOSTED_URL = "https://api.techkern.xyz/mcp"
 
-    async def route(self, **kwargs):
-        r = await self._client.post(
-            f"{self.base_url}/v1/route",
-            headers={"Authorization": f"Bearer {self.api_key}"},
-            json=kwargs,
-        )
+
+class MCPClient:
+    def __init__(self, url: str = HOSTED_URL, api_key: str | None = None) -> None:
+        self.url = url
+        self.api_key = api_key
+        self._client = httpx.AsyncClient(timeout=30.0)
+
+    async def call(self, tool: str, args: dict) -> dict:
+        headers = {"content-type": "application/json"}
+        if self.api_key:
+            headers["authorization"] = f"Bearer {self.api_key}"
+        r = await self._client.post(f"{self.url}/tools/{tool}", json=args, headers=headers)
         r.raise_for_status()
         return r.json()
+
+    async def aclose(self) -> None:
+        await self._client.aclose()
+
+
+__all__ = ["MCPClient", "HOSTED_URL"]
